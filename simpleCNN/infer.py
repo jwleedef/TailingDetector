@@ -4,10 +4,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets,transforms
 from torch.autograd import Variable
-
-is_cuda=False
-if torch.cuda.is_available():
-    is_cuda = True
+import argparse
+from sklearn.model_selection import train_test_split
 
 class Net(nn.Module):
     def __init__(self):
@@ -32,69 +30,50 @@ class Net(nn.Module):
         return F.log_softmax(x,dim=1)
         # return x
 
-def fit(epoch,model,phase='training',volatile=False):
-    if phase == 'training':
-        model.train()
-    if phase == 'validation':
-        model.eval()
-        volatile=True
+def torchLoader(path):
+    ret = torch.load(path)
+    return ret
 
-    running_loss = 0.0
-    running_correct = 0
+def infer(model, dataPath, batchSize, is_cuda=False):
+    model.eval()
     
-    data = torch.load("/home/jwlee/kaia/EdgeAnalysisModule/testData-03.pt")
-    data = data.cuda()
-    data = Variable(data, volatile)
+    test_dataset = datasets.DatasetFolder(root=dataPath, loader=torchLoader, extensions='.pt')
+
+    batch_size = batchSize
+    dataloaders = torch.utils.data.DataLoader(test_dataset, batch_size=batchSize,
+                                            shuffle=False, num_workers=4)
+    batch_num = len(dataloaders)
+
+    for inputs, labels in dataloaders:
+        if is_cuda:
+            inputs, labels = inputs.cuda(), labels.cuda()
+        inputs, labels = Variable(inputs), Variable(labels)
+
+        # print(f'\n[DATA] {inputs}')
+
+        output = model(inputs)
+        print(f'\n[OUTPUT] : {output}')
+
+        preds = output.data.max(dim=1,keepdim=True)[1]
+        print(f'[PREDICTION] : {preds}')
+        print(f'[LABEL] : {labels}\n')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', type=str, default='../Dataset/test', help='Test Data Directory')
+    parser.add_argument('--batchsize', type=int, default=1, help='Test Dataset Batch size')
+    args = parser.parse_args()
+
+    dataPath = args.data_path
+    batchSize = args.batchsize
+
+    is_cuda=False
+    if torch.cuda.is_available():
+        is_cuda = True
     
-    print(f'\n[DATA] : {data.sum()} {data.size()}')
+    model = torch.load('model.pt')
+    if is_cuda:
+        model.cuda()
 
-    target = torch.tensor([1])
-    target = target.cuda()
-    target = Variable(target)
-
-    if phase == 'training':
-        optimizer.zero_grad()
-    output = model(data)
-    # output = output.view(-1)
-
-    print(f'\n[OUTPUT] : {output} {output.size()}')
-    print(f'[TARGET] : {target}')
-
-    loss = F.nll_loss(output, target)
-    # criterion = nn.BCELoss()
-    # loss = criterion(output, target)
-
-    running_loss += F.nll_loss(output, target).data
-    preds = output.data.max(dim=1,keepdim=True)[1]
-    running_correct += preds.eq(target.data.view_as(preds)).cpu().sum()
-
-    print(f'[PREDICTION] : {preds}\n')
-
-    if phase == 'training':
-        loss.backward()
-        optimizer.step()
-    
-    loss = running_loss.item()#/len(data_loader.dataset)
-    accuracy = 100.0 * running_correct.item()#/len(data_loader.dataset)
-    
-    print(f'{phase} loss is {loss:{5}.{2}} and {phase} accuracy is {running_correct}/{1} {accuracy:{10}.{4}}')
-    return loss,accuracy
-
-
-learning_rate = 0.01
-
-model = Net()
-if is_cuda:
-    model.cuda()
-
-optimizer = optim.SGD(model.parameters(),lr=learning_rate)
-
-# train_losses , train_accuracy = [],[]
-val_losses , val_accuracy = [],[]
-
-model = torch.load('model.pt')
-epoch = 1
-epoch_loss , epoch_accuracy = fit(epoch,model,phase='validation')
-
-print(f'loss : {epoch_loss}')
-print(f'accuracy : {epoch_accuracy}')
+    infer(model, dataPath, batchSize, is_cuda)

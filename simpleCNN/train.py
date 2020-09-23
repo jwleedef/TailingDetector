@@ -55,7 +55,7 @@ def fit(epoch,model,phase='train',volatile=False):
         # print(f'[LABEL] : {labels} \n')
 
         loss = F.nll_loss(output, labels)
-
+        print(loss)
         if phase == 'train':
             loss.backward()
             optimizer.step()
@@ -80,7 +80,7 @@ from torch.utils.data import Subset
 data_path = '../Dataset/train'
 train_dataset = datasets.DatasetFolder(root=data_path, loader=torchLoader, extensions='.pt')
 
-batch_size  = 128
+batch_size  = 512
 random_seed = 555
 random.seed(random_seed)
 torch.manual_seed(random_seed)
@@ -103,7 +103,7 @@ batch_num['train'], batch_num['valid'], = len(dataloaders['train']), len(dataloa
  # Main 
  ########################
 
-learning_rate = 0.01
+learning_rate = 0.001
 
 model = Net()
 if is_cuda:
@@ -114,7 +114,7 @@ optimizer = optim.SGD(model.parameters(),lr=learning_rate)
 train_losses , train_accuracy = [],[]
 val_losses , val_accuracy = [],[]
 
-for epoch in range(1,20):
+for epoch in range(1,100):
     epoch_loss, epoch_accuracy = fit(epoch,model,phase='train')
     val_epoch_loss , val_epoch_accuracy = fit(epoch,model,phase='valid')
     train_losses.append(epoch_loss)
@@ -122,4 +122,5 @@ for epoch in range(1,20):
     print(f'epoch : {epoch}')
     print(f'train loss : {epoch_loss}')
     print(f'valid loss : {val_epoch_loss}')
-torch.save(model, 'model.pt')
+    torch.save(model, 'model.pt')
+    print(f'[UPDATE] model.pt ')
