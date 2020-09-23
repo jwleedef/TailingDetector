@@ -10,8 +10,7 @@ import argparse
 
 from simpleCNN.simpleCNN import Net
 
-
-def train(epoch,model,phase='train',volatile=False):
+def train(epoch, model, dataloaders, batch_num, phase='train', volatile=False):
     if phase == 'train':
         model.train()
     if phase == 'valid':
@@ -23,7 +22,7 @@ def train(epoch,model,phase='train',volatile=False):
 
     for inputs, labels in dataloaders[phase]:
         inputs, labels = inputs.cuda(), labels.cuda()
-        inputs, labels = Variable(inputs), Variable(labels)
+        inputs, labels = Variable(inputs, volatile), Variable(labels)
         
         if phase == 'train':
             optimizer.zero_grad()
@@ -35,41 +34,35 @@ def train(epoch,model,phase='train',volatile=False):
             loss.backward()
             optimizer.step()
         
-    _, preds = torch.max(output, 1)
-
-    accuracy = 0
-    return loss,accuracy
+    return loss
 
 def torchLoader(path):
     ret = torch.load(path)
     return ret
 
-#########################
-# Data Load
-#########################
+def dataload(batchSize, dataPath):
+    train_dataset = datasets.DatasetFolder(root=dataPath, loader=torchLoader, extensions='.pt')
 
-data_path = 'Dataset/train'
-train_dataset = datasets.DatasetFolder(root=data_path, loader=torchLoader, extensions='.pt')
+    random_seed = 555
+    random.seed(random_seed)
+    torch.manual_seed(random_seed)
 
-batch_size  = 64
-random_seed = 555
-random.seed(random_seed)
-torch.manual_seed(random_seed)
+    train_idx, val_idx = train_test_split(list(range(len(train_dataset))), test_size=0.2, random_state=random_seed)
+    
+    datasets = {}
+    datasets['train'] = Subset(train_dataset, train_idx)
+    datasets['valid'] = Subset(train_dataset, val_idx)
 
-train_idx, val_idx = train_test_split(list(range(len(train_dataset))), test_size=0.2, random_state=random_seed)
-datasets = {}
-datasets['train'] = Subset(train_dataset, train_idx)
-datasets['valid'] = Subset(train_dataset, val_idx)
+    dataloaders, batch_num = {}, {}
+    dataloaders['train'] = torch.utils.data.DataLoader(datasets['train'],
+                                                batch_size=batch_size, shuffle=True,
+                                                num_workers=4)
+    dataloaders['valid'] = torch.utils.data.DataLoader(datasets['valid'],
+                                                batch_size=batch_size, shuffle=False,
+                                                num_workers=4)
+    batch_num['train'], batch_num['valid'], = len(dataloaders['train']), len(dataloaders['valid'])
 
-dataloaders, batch_num = {}, {}
-dataloaders['train'] = torch.utils.data.DataLoader(datasets['train'],
-                                              batch_size=batch_size, shuffle=True,
-                                              num_workers=4)
-dataloaders['valid'] = torch.utils.data.DataLoader(datasets['valid'],
-                                              batch_size=batch_size, shuffle=False,
-                                              num_workers=4)
-batch_num['train'], batch_num['valid'], = len(dataloaders['train']), len(dataloaders['valid'])
-
+    return dataloaders, batch_num
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -90,19 +83,20 @@ if __name__ == '__main__':
 
     model = Net()
     if is_cuda:
+        model = torch.nn.DataParallel(model)
         model.cuda()
 
     optimizer = optim.SGD(model.parameters(),lr=learning_rate)
 
-    train_losses , train_accuracy = [],[]
-    val_losses , val_accuracy = [],[]
+    dataloaders, batch_num = dataload(batchSize, dataPath)
 
-    for i in range(epoch):
-        epoch_loss, epoch_accuracy = train(i,model,phase='train')
-        val_epoch_loss , val_epoch_accuracy = train(i,model,phase='valid')
+    train_losses , val_losses = [],[]
+
+    for index in range(epoch):
+        epoch_loss = train(index, model, dataloaders, batch_num, phase='train')
+        val_epoch_loss  = train(index, model, dataloaders, batch_num, phase='valid')
         train_losses.append(epoch_loss)
-        train_accuracy.append(epoch_accuracy)
-        print(f'epoch : {i}')
+        print(f'epoch : {index}')
         print(f'train loss : {epoch_loss}')
         print(f'valid loss : {val_epoch_loss}')
         torch.save(model, 'model.pt')
