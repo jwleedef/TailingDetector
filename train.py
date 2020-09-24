@@ -1,14 +1,20 @@
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import Subset
 from torchvision import datasets
 from sklearn.model_selection import train_test_split
+
+import time
+import copy
 import random
 import argparse
 
+
 from simpleCNN.simpleCNN import Net
+from efficientnet import EfficientNet
 
 def train(epoch, model, dataloaders, batch_num, phase='train', volatile=False):
     if phase == 'train':
@@ -29,12 +35,87 @@ def train(epoch, model, dataloaders, batch_num, phase='train', volatile=False):
         output = model(inputs)
 
         loss = F.nll_loss(output, labels)
-        # print(loss)
         if phase == 'train':
             loss.backward()
             optimizer.step()
         
     return loss
+
+def train_efficientNet(model, dataloaders, batch_num, criterion, optimizer, scheduler, num_epochs=25):
+    since = time.time()
+
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+    train_loss, train_acc, valid_loss, valid_acc = [], [], [], []
+    
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+        print('-' * 10)
+
+        # Each epoch has a training and validation phase
+        for phase in ['train', 'valid']:
+            if phase == 'train':
+                model.train()  # Set model to training mode
+            else:
+                model.eval()   # Set model to evaluate mode
+
+            running_loss, running_corrects, num_cnt = 0.0, 0, 0
+            
+            for inputs, labels in dataloaders[phase]:
+                inputs, labels = inputs.cuda(), labels.cuda()
+                inputs, labels = Variable(inputs), Variable(labels)
+
+                # zero the parameter gradients
+                optimizer.zero_grad()
+
+                # forward
+                # track history if only in train
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+
+                    # backward + optimize only if in training phase
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+
+                # statistics
+                running_loss += loss.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
+                num_cnt += len(labels)
+
+            if phase == 'train':
+                scheduler.step()
+            
+            epoch_loss = float(running_loss / num_cnt)
+            epoch_acc  = float((running_corrects.double() / num_cnt).cpu()*100)
+            
+            if phase == 'train':
+                train_loss.append(epoch_loss)
+                train_acc.append(epoch_acc)
+            else:
+                valid_loss.append(epoch_loss)
+                valid_acc.append(epoch_acc)
+            print('{} Loss: {:.2f} Acc: {:.1f}'.format(phase, epoch_loss, epoch_acc))
+           
+            # deep copy the model
+            if phase == 'valid' and epoch_acc > best_acc:
+                best_idx = epoch
+                best_acc = epoch_acc
+                best_model_wts = copy.deepcopy(model.state_dict())
+                # best_model_wts = copy.deepcopy(model.module.state_dict())
+                print('==> best model saved - %d / %.1f'%(best_idx, best_acc))
+
+    time_elapsed = time.time() - since
+    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
+    print('Best valid Acc: %d - %.1f' %(best_idx, best_acc))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+    torch.save(model, 'effi-model.pt')
+    print('model saved')
+    return model, best_idx, best_acc, train_loss, train_acc, valid_loss, valid_acc
 
 def torchLoader(path):
     ret = torch.load(path)
@@ -49,16 +130,16 @@ def dataload(batchSize, dataPath):
 
     train_idx, val_idx = train_test_split(list(range(len(train_dataset))), test_size=0.2, random_state=random_seed)
     
-    datasets = {}
-    datasets['train'] = Subset(train_dataset, train_idx)
-    datasets['valid'] = Subset(train_dataset, val_idx)
+    dataset = {}
+    dataset['train'] = Subset(train_dataset, train_idx)
+    dataset['valid'] = Subset(train_dataset, val_idx)
 
     dataloaders, batch_num = {}, {}
-    dataloaders['train'] = torch.utils.data.DataLoader(datasets['train'],
-                                                batch_size=batch_size, shuffle=True,
+    dataloaders['train'] = torch.utils.data.DataLoader(dataset['train'],
+                                                batch_size=batchSize, shuffle=True,
                                                 num_workers=4)
-    dataloaders['valid'] = torch.utils.data.DataLoader(datasets['valid'],
-                                                batch_size=batch_size, shuffle=False,
+    dataloaders['valid'] = torch.utils.data.DataLoader(dataset['valid'],
+                                                batch_size=batchSize, shuffle=False,
                                                 num_workers=4)
     batch_num['train'], batch_num['valid'], = len(dataloaders['train']), len(dataloaders['valid'])
 
@@ -66,12 +147,14 @@ def dataload(batchSize, dataPath):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--model', type=str, default='simpleCNN', help='select model : [simpleCNN, efficientNet]')
     parser.add_argument('--data_path', type=str, default='Dataset/train', help='path to train data directory')
     parser.add_argument('--batchsize', type=int, default=512, help='train batchsize')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--epoch', type=int, default=100, help='epoch')
     args = parser.parse_args()
 
+    model = args.model
     dataPath = args.data_path
     batchSize = args.batchsize
     learning_rate = args.learning_rate
@@ -81,23 +164,41 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         is_cuda = True
 
-    model = Net()
-    if is_cuda:
-        model = torch.nn.DataParallel(model)
-        model.cuda()
-
-    optimizer = optim.SGD(model.parameters(),lr=learning_rate)
-
     dataloaders, batch_num = dataload(batchSize, dataPath)
 
-    train_losses , val_losses = [],[]
+    if model == 'simpleCNN':
+        model = Net()
+        if is_cuda:
+            model = torch.nn.DataParallel(model)
+            model.cuda()
+        optimizer = optim.SGD(model.parameters(),lr=learning_rate)
+        # dataloaders, batch_num = dataload(batchSize, dataPath)
 
-    for index in range(epoch):
-        epoch_loss = train(index, model, dataloaders, batch_num, phase='train')
-        val_epoch_loss  = train(index, model, dataloaders, batch_num, phase='valid')
-        train_losses.append(epoch_loss)
-        print(f'epoch : {index}')
-        print(f'train loss : {epoch_loss}')
-        print(f'valid loss : {val_epoch_loss}')
-        torch.save(model, 'model.pt')
-        print(f'[UPDATE] model.pt ')
+        train_losses , val_losses = [],[]
+
+        for index in range(epoch):
+            epoch_loss = train(index, model, dataloaders, batch_num, phase='train')
+            val_epoch_loss  = train(index, model, dataloaders, batch_num, phase='valid')
+            train_losses.append(epoch_loss)
+            print(f'epoch : {index}')
+            print(f'train loss : {epoch_loss}')
+            print(f'valid loss : {val_epoch_loss}')
+            torch.save(model, 'simple-model.pt')
+            print(f'[UPDATE] model.pt ')
+
+    elif model == 'efficientNet':
+        model_name = 'efficientnet-b0'
+        model = EfficientNet.from_name(model_name, num_classes=2)
+        if is_cuda:
+            model = torch.nn.DataParallel(model)
+            model.cuda()
+        criterion = nn.CrossEntropyLoss()
+        optimizer_ft = optim.SGD(model.parameters(), 
+                                lr = learning_rate,
+                                momentum=0.9,
+                                weight_decay=1e-4)
+        lmbda = lambda epoch: 0.98739        
+        exp_lr_scheduler = optim.lr_scheduler.MultiplicativeLR(optimizer_ft, lr_lambda=lmbda)
+        # dataloaders, batch_num = dataload(batchSize, dataPath)
+
+        model, best_idx, best_acc, train_loss, train_acc, valid_loss, valid_acc = train_efficientNet(model, dataloaders, batch_num, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=epoch)

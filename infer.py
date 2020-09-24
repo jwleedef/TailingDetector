@@ -6,6 +6,7 @@ from torch.autograd import Variable
 import argparse
 
 from simpleCNN.simpleCNN import Net
+from efficientnet import EfficientNet
 
 def torchLoader(path):
     ret = torch.load(path)
@@ -38,6 +39,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='Dataset/test', help='path to test data directory')
     parser.add_argument('--batchsize', type=int, default=1, help='test batchsize')
+    parser.add_argument('-c', '--checkfile', type=str, default='model.pt', help='')
     args = parser.parse_args()
 
     dataPath = args.data_path
