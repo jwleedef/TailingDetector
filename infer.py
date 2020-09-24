@@ -44,12 +44,13 @@ if __name__ == '__main__':
 
     dataPath = args.data_path
     batchSize = args.batchsize
+    checkfile = args.checkfile
 
     is_cuda=False
     if torch.cuda.is_available():
         is_cuda = True
     
-    model = torch.load('model.pt')
+    model = torch.load(checkfile)
     if is_cuda:
         model.cuda()
 
