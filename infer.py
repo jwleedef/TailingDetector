@@ -28,11 +28,14 @@ def infer(model, dataPath, batchSize, is_cuda=False):
         inputs, labels = Variable(inputs), Variable(labels)
 
         output = model(inputs)
-        print(f'\n[OUTPUT] : {output}')
+        # print(f'\n[OUTPUT] : {output}')
 
         _, preds = torch.max(output, 1)
-        print(f'[PREDICTION] : {preds}')
-        print(f'[LABEL] : {labels}\n')
+        # print(f'[PREDICTION] : {preds}')
+        # print(f'[LABEL] : {labels}\n')
+
+        if labels != preds:
+            print(f'ERR - Label : {labels}, Pred : {preds}')
 
 
 if __name__ == '__main__':
@@ -54,4 +57,6 @@ if __name__ == '__main__':
     if is_cuda:
         model.cuda()
 
+    print(f'[Start]')
     infer(model, dataPath, batchSize, is_cuda)
+    print(f'[END]')
