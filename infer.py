@@ -6,6 +6,7 @@ from torch.autograd import Variable
 import argparse
 
 from simpleCNN.simpleCNN import Net
+from simpleUnionCNN.simpleUnionCNN import UnionNet
 from efficientnet import EfficientNet
 
 def torchLoader(path):

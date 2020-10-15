@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Net(nn.Module):
+class UnionNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(10, 32, kernel_size=3,stride=1)
-        self.conv2 = nn.Conv2d(32, 16, kernel_size=3,stride=1)
+        self.conv1 = nn.Conv2d(1, 8, kernel_size=3,stride=1)
+        self.conv2 = nn.Conv2d(8, 16, kernel_size=3,stride=1)
         self.conv3 = nn.Conv2d(16, 10, kernel_size=3,stride=1)
         self.conv2_drop = nn.Dropout2d()
 

@@ -19,7 +19,7 @@ def markingTargetGrid(gridMap, sequence, x, y, marking_value, marking_size):
             if y_var < 0:
                 y_var = 0
                 
-            gridMap[sequence, x_var, y_var] += marking_value
+            gridMap[sequence, x_var, y_var] += marking_value * (sequence + 1)
 
 def markingSelectedDirection(direction, gridMap, init_x, init_y, horizontal, vertical, valid):
     if direction > 3:
@@ -116,6 +116,8 @@ if __name__ == '__main__':
     savePath = args.path
 
     gridMap = torch.zeros(10, w, h)
+    unionGridMap = torch.zeros(w, h)
+
     quadrant = random.randint(1, 4)
     subQuadrant = random.randint(1, 4)
     while quadrant == subQuadrant :
@@ -129,8 +131,12 @@ if __name__ == '__main__':
         for i in range(numberOfData):
             makeSyntheticData(gridMap, quadrant, w, h, numberOfMaxPerson, markValue, valid)
             datasetName = f'{savePath}/0/tailing-0-{i}.pt'
-            torch.save(gridMap, datasetName)
+            for j in range(10):
+                unionGridMap += gridMap[j,:]
+            unionGridMap = torch.unsqueeze(unionGridMap, 0)
+            torch.save(unionGridMap, datasetName)
             gridMap = torch.zeros(10, w, h)
+            unionGridMap = torch.zeros(w, h)
             print(f'[Created] {i+1}th data')
         print(f'[DONE] Created {numberOfData} Tailing Data\n')
 
@@ -145,8 +151,12 @@ if __name__ == '__main__':
             if extra == 1 :
                 makeSyntheticData(gridMap, subQuadrant, w, h, numberOfMaxPerson, markValue, valid)
             datasetName = f'{savePath}/1/non-tailing-1-{i}.pt'
-            torch.save(gridMap, datasetName)
+            for j in range(10):
+                unionGridMap += gridMap[j,:]
+            unionGridMap = torch.unsqueeze(unionGridMap, 0)
+            torch.save(unionGridMap, datasetName)
             gridMap = torch.zeros(10, w, h)
+            unionGridMap = torch.zeros(w, h)
             print(f'[Created] {i+1}th data')
 
         # for i in range(numberOfData):
