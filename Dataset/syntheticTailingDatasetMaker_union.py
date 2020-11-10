@@ -54,7 +54,7 @@ def makeSyntheticData(gridMap, quadrant, w, h, numberOfMaxPerson, markValue, val
     x_guide = [0, w/2, w-1]
     y_guide = [0, h/2, h-1]
 
-    min, max = int((w/2)/10), int(w/10)
+    min, max = int(w/30), int(w/15)
 
     if quadrant == 1:
         init_x = [random.randint(x_guide[1], x_guide[2]), random.randint(x_guide[1], x_guide[2])]
@@ -88,13 +88,13 @@ def makeSyntheticData(gridMap, quadrant, w, h, numberOfMaxPerson, markValue, val
         horizontal, vertical = random.randint(-max, -min), random.randint(-max, -min)
         markingSelectedDirection(direction, gridMap, init_x, init_y, horizontal, vertical, valid)
     
-    # if numberOfMaxPerson > 2:
-    #     for s in range(10):
-    #         otherPerson = random.randint(0, numberOfMaxPerson - 2)
-    #         for n in range(otherPerson):
-    #             x = random.randint(0, w-1)
-    #             y = random.randint(0, h-1)
-    #             gridMap[s, x, y] += markValue
+    if random.randint(0, 1):
+        otherPerson = random.randint(0, 2)
+        for n in range(otherPerson):
+            x = random.randint(0, w-1)
+            y = random.randint(0, h-1)
+            for s in range(10):
+                gridMap[s, x, y] += markValue * (s + 1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

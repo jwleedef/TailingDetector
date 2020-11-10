@@ -13,13 +13,12 @@ def torchLoader(path):
     ret = torch.load(path)
     return ret
 
-def infer(model, dataPath, batchSize, is_cuda=False):
+def infer(model, dataPath, is_cuda=False):
     model.eval()
     
     test_dataset = datasets.DatasetFolder(root=dataPath, loader=torchLoader, extensions='.pt')
 
-    batch_size = batchSize
-    dataloaders = torch.utils.data.DataLoader(test_dataset, batch_size=batchSize,
+    dataloaders = torch.utils.data.DataLoader(test_dataset, batch_size=1,
                                             shuffle=False, num_workers=4)
     batch_num = len(dataloaders)
 
@@ -37,17 +36,17 @@ def infer(model, dataPath, batchSize, is_cuda=False):
 
         if labels != preds:
             print(f'ERR - Label : {labels}, Pred : {preds}')
+            print(f'[OUTPUT] : {output}\n')
+
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str, default='Dataset/test', help='path to test data directory')
-    parser.add_argument('--batchsize', type=int, default=1, help='test batchsize')
     parser.add_argument('-c', '--checkfile', type=str, default='model.pt', help='')
     args = parser.parse_args()
 
     dataPath = args.data_path
-    batchSize = args.batchsize
     checkfile = args.checkfile
 
     is_cuda=False
@@ -59,5 +58,5 @@ if __name__ == '__main__':
         model.cuda()
 
     print(f'[Start]')
-    infer(model, dataPath, batchSize, is_cuda)
+    infer(model, dataPath, is_cuda)
     print(f'[END]')
