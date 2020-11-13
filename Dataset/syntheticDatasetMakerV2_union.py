@@ -109,8 +109,8 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--type', type=str, default='valid', help='type of dataset - valid: Tailing, invalid: Non-Tailing')
     parser.add_argument('-n', '--numberOfData', type=int, default=10000, help='number of synthetic data to be created')
     parser.add_argument('-v', '--marking_value', type=int, default=1, help='values to mark on each grid-cell')
-    parser.add_argument('--width', type=int, default=120, help='width size about each frame')
-    parser.add_argument('--height', type=int, default=120, help='height size about each frame')
+    parser.add_argument('--width', type=int, default=224, help='width size about each frame')
+    parser.add_argument('--height', type=int, default=224, help='height size about each frame')
     parser.add_argument('--path', type=str, default='train', help='Dataset Path')
     args = parser.parse_args()
 
@@ -134,9 +134,15 @@ if __name__ == '__main__':
 
         for i in range(numberOfData):
             makeSyntheticData(gridMap, quadrant, w, h, markValue, valid)
-            datasetName = f'{savePath}/0/tailing-0-{i}.pt'            
-            torch.save(gridMap, datasetName)
+            datasetName = f'{savePath}/0/tailing-0-{i}.pt'
+            for j in range(10):
+                unionGridMap += gridMap[j,:]
+            unionGridMap = torch.unsqueeze(unionGridMap, 0)
+            torch.save(unionGridMap, datasetName)
             gridMap = torch.zeros(10, w, h)
+            unionGridMap = torch.zeros(w, h)            
+            # torch.save(gridMap, datasetName)
+            # gridMap = torch.zeros(10, w, h)
             if i % 100 == 0:
                 print(f'[Created] {i+1}th data')
         print(f'[DONE] Created {numberOfData} Tailing Data\n')
@@ -149,9 +155,15 @@ if __name__ == '__main__':
             extra = random.randint(0, 1)
             if extra == 1 :
                 makeSyntheticData(gridMap, subQuadrant, w, h, markValue, valid)
-            datasetName = f'{savePath}/1/non-tailing-1-{i}.pt'           
-            torch.save(gridMap, datasetName)
+            datasetName = f'{savePath}/1/non-tailing-1-{i}.pt'
+            for j in range(10):
+                unionGridMap += gridMap[j,:]
+            unionGridMap = torch.unsqueeze(unionGridMap, 0)
+            torch.save(unionGridMap, datasetName)
             gridMap = torch.zeros(10, w, h)
+            unionGridMap = torch.zeros(w, h)            
+            # torch.save(gridMap, datasetName)
+            # gridMap = torch.zeros(10, w, h)
             if (i+1) % 100 == 0:
                 print(f'[Created] {i+1}th data')
         print(f'[DONE] Created {numberOfData} Non-Tailing Data\n')
