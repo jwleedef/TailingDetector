@@ -25,13 +25,14 @@ def markingSelectedDirection(direction, gridMap, init_x, init_y, horizontal, ver
     if direction > 3:
         direction = random.randint(1, 3)
 
-    markSize = 5
+    markSize = 3
     randPoint = random.randint(-5, 5)
 
     if direction == 1:
         for s in range(10):
-            x1 = init_x + (s * (horizontal + randPoint))
+            x1 = init_x + (s * (horizontal + randPoint)) 
             y1 = init_y + (s * randPoint)
+            
             markingTargetGrid(gridMap, s, x1, y1, markValue, markSize)
             if valid == True:
                 x2 = x1 - 2 * horizontal + randPoint
@@ -101,7 +102,7 @@ def makeSyntheticData(gridMap, quadrant, w, h, markValue, valid):
             x = random.randint(0, w-1)
             y = random.randint(0, h-1)
             for s in range(10):
-                markingTargetGrid(gridMap, s, x, y, markValue, 5)
+                markingTargetGrid(gridMap, s, x, y, markValue, 3)
 
 
 if __name__ == '__main__':
@@ -137,7 +138,7 @@ if __name__ == '__main__':
             datasetName = f'{savePath}/0/tailing-0-{i}.pt'            
             torch.save(gridMap, datasetName)
             gridMap = torch.zeros(10, w, h)
-            if i % 100 == 0:
+            if (i+1) % 100 == 0:
                 print(f'[Created] {i+1}th data')
         print(f'[DONE] Created {numberOfData} Tailing Data\n')
 

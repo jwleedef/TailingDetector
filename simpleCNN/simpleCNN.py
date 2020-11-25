@@ -10,16 +10,16 @@ class Net(nn.Module):
         self.conv3 = nn.Conv2d(16, 10, kernel_size=3,stride=1)
         self.conv2_drop = nn.Dropout2d()
 
-        # self.fc1 = nn.Linear(7290, 1000)
-        self.fc1 = nn.Linear(7840, 1000)
+        self.fc1 = nn.Linear(7290, 1000)
+        # self.fc1 = nn.Linear(7840, 1000)
         self.fc2 = nn.Linear(1000, 2)
 
     def forward(self, x):
-        # x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        # x = F.relu(self.conv2_drop(self.conv2(x)), 2)
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(self.conv2_drop(self.conv2(x)), 2)
 
-        x = F.relu(self.conv1(x), 2)
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        # x = F.relu(self.conv1(x), 2)
+        # x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
 
         x = F.relu(F.max_pool2d(self.conv3(x), 2))
 

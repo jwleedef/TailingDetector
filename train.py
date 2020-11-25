@@ -12,7 +12,7 @@ import copy
 import random
 import argparse
 
-from simpleCNN.simpleCNN import Net
+from simpleCNN.simpleCNN_V2 import Net
 from simpleUnionCNN.simpleUnionCNN import UnionNet
 from efficientnet import EfficientNet
 
@@ -86,7 +86,7 @@ def train(model, modelName, dataloaders, batch_num, criterion, optimizer, schedu
                 model.load_state_dict(best_model_wts)
 
         model.load_state_dict(best_model_wts)
-        torch.save(model, f'weights/{modelName}/{modelName}-{epoch}-model.pt')
+        torch.save(model, f'{savePath}/{modelName}-{epoch}-model.pt')
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
@@ -94,7 +94,7 @@ def train(model, modelName, dataloaders, batch_num, criterion, optimizer, schedu
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    torch.save(model, f'{modelName}-best-model.pt')
+    torch.save(model, f'{savePath}/{modelName}-best-model.pt')
     print('model saved')
     return model, best_idx, best_acc, train_loss, train_acc, valid_loss, valid_acc
 
@@ -133,6 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('--batchsize', type=int, default=32, help='train batchsize')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-2, help='learning rate')
     parser.add_argument('--epoch', type=int, default=100, help='epoch')
+    parser.add_argument('--path', type=str, default='weights/simpleCNN', help='path to save checkfile')
     args = parser.parse_args()
 
     model = args.model
@@ -141,6 +142,7 @@ if __name__ == '__main__':
     batchSize = args.batchsize
     learning_rate = args.learning_rate
     epoch = args.epoch
+    savePath = args.path
 
     is_cuda=False
     if torch.cuda.is_available():

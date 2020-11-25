@@ -22,6 +22,7 @@ def infer(model, dataPath, is_cuda=False):
                                             shuffle=False, num_workers=4)
     batch_num = len(dataloaders)
 
+    cnt, err = 0, 0
     for inputs, labels in dataloaders:
         if is_cuda:
             inputs, labels = inputs.cuda(), labels.cuda()
@@ -31,12 +32,16 @@ def infer(model, dataPath, is_cuda=False):
         # print(f'\n[OUTPUT] : {output}')
 
         _, preds = torch.max(output, 1)
+        cnt += 1
         # print(f'[PREDICTION] : {preds}')
         # print(f'[LABEL] : {labels}\n')
 
         if labels != preds:
             print(f'ERR - Label : {labels}, Pred : {preds}')
             print(f'[OUTPUT] : {output}\n')
+            err += 1
+
+    print(f'[Every Test Case] {cnt} [Error case] {err}\n[Accuracy] { (cnt - err) / cnt}\n')
 
 
 
@@ -56,7 +61,4 @@ if __name__ == '__main__':
     model = torch.load(checkfile)
     if is_cuda:
         model.cuda()
-
-    print(f'[Start]')
     infer(model, dataPath, is_cuda)
-    print(f'[END]')
